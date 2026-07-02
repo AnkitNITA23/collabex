@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import JSZip from 'jszip';
 import { EditorView } from '@codemirror/view';
 import { RoomJoin } from './components/RoomJoin';
@@ -10,12 +10,39 @@ import { useCollab } from './hooks/useCollab';
 import { Copy, Check, MessageSquare, Send, LogOut, Code, Languages, Palette, Download } from 'lucide-react';
 
 export default function App() {
-  const [session, setSession] = useState<{ roomId: string; username: string; color: string; avatar: string } | null>(null);
+  const [session, setSession] = useState<{ roomId: string; username: string; color: string; avatar: string } | null>(() => {
+    const saved = localStorage.getItem('collabex_session');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        const params = new URLSearchParams(window.location.search);
+        const urlRoom = params.get('room');
+        if (!urlRoom || urlRoom.toUpperCase() === parsed.roomId.toUpperCase()) {
+          return parsed;
+        }
+      } catch (e) {
+        console.error('Failed to restore session from localStorage:', e);
+      }
+    }
+    return null;
+  });
+
   const editorRef = useRef<EditorView | null>(null);
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const [chatInput, setChatInput] = useState('');
   const [copied, setCopied] = useState(false);
   const [theme, setTheme] = useState('one-dark');
+
+  // Sync browser URL room query parameter with session state on mount/change
+  useEffect(() => {
+    if (session) {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('room') !== session.roomId) {
+        const newUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?room=${session.roomId}`;
+        window.history.pushState({ path: newUrl }, '', newUrl);
+      }
+    }
+  }, [session]);
 
   const {
     connected,
@@ -47,12 +74,15 @@ export default function App() {
   );
 
   const handleJoin = (roomId: string, username: string, color: string, avatar: string) => {
+    const newSession = { roomId, username, color, avatar };
+    localStorage.setItem('collabex_session', JSON.stringify(newSession));
     const newUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?room=${roomId}`;
     window.history.pushState({ path: newUrl }, '', newUrl);
-    setSession({ roomId, username, color, avatar });
+    setSession(newSession);
   };
 
   const handleLeave = () => {
+    localStorage.removeItem('collabex_session');
     const cleanUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}`;
     window.history.pushState({ path: cleanUrl }, '', cleanUrl);
     setSession(null);

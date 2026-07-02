@@ -118,7 +118,8 @@ export const ExecutionPanel: React.FC<ExecutionPanelProps> = ({ code, language }
 
       try {
         // shadow the global console object using parameter shadowing in async IIFE
-        const wrappedCode = `(async (console) => { ${code} })(customConsole)`;
+        // wrapped with newlines to ensure single-line comments don't comment out the closing brace
+        const wrappedCode = `(async (console) => {\n${code}\n})(customConsole)`;
         const result = await eval(wrappedCode); // eslint-disable-line no-eval
 
         if (captured.length === 0) {
@@ -131,8 +132,8 @@ export const ExecutionPanel: React.FC<ExecutionPanelProps> = ({ code, language }
 
         setEntries(captured);
       } catch (err: any) {
-        if (captured.length > 0) setEntries(captured);
-        setEntries((prev) => [...prev, { text: `Runtime Error: ${err.message}`, type: 'error' }]);
+        const errMsg = err instanceof Error ? err.message : String(err);
+        setEntries([...captured, { text: `Runtime Error: ${errMsg}`, type: 'error' }]);
       }
     } else if (language === 'python') {
       try {
