@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { Play, RotateCcw, Eye, Terminal as TerminalIcon, Loader2 } from 'lucide-react';
 
 interface ExecutionPanelProps {
@@ -17,7 +17,6 @@ export const ExecutionPanel: React.FC<ExecutionPanelProps> = ({ code, language }
   const [isRunning, setIsRunning] = useState(false);
   const [pyodideLoading, setPyodideLoading] = useState(false);
   const pyodideRef = useRef<any>(null);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
   const consoleEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -177,32 +176,25 @@ export const ExecutionPanel: React.FC<ExecutionPanelProps> = ({ code, language }
 
   const handleClear = () => setEntries([]);
 
-  useEffect(() => {
-    if (activeTab === 'preview' && iframeRef.current) {
-      const iframe = iframeRef.current;
-      const doc = iframe.contentDocument || iframe.contentWindow?.document;
-      if (doc) {
-        doc.open();
-        if (language === 'html') {
-          doc.write(code);
-        } else if (language === 'css') {
-          doc.write(`<style>${code}</style><div style="font-family: sans-serif; padding: 20px;"><h1>CSS Style Preview</h1><p>The style has been applied to this page.</p></div>`);
-        } else if (language === 'markdown') {
-          const htmlContent = code
-            .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-            .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-            .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-            .replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>')
-            .replace(/\*(.*)\*/gim, '<em>$1</em>')
-            .replace(/\n$/gim, '<br />');
-          doc.write(`<div style="font-family: sans-serif; padding: 20px; color: #fff; background-color: #1e1e1e; min-height: 100vh;">${htmlContent}</div>`);
-        } else {
-          doc.write(`<div style="font-family: sans-serif; padding: 20px; color: #fff; background-color: #1e1e1e;"><h3>${language} — no live preview</h3><pre>${code}</pre></div>`);
-        }
-        doc.close();
-      }
+  const getPreviewHtml = (): string => {
+    if (language === 'html') {
+      return code;
     }
-  }, [code, language, activeTab]);
+    if (language === 'css') {
+      return `<!DOCTYPE html><html><head><style>${code}</style></head><body><div style="font-family: sans-serif; padding: 20px; color: #333;"><h1>CSS Style Preview</h1><p>The style has been applied to this page.</p></div></body></html>`;
+    }
+    if (language === 'markdown') {
+      const htmlContent = code
+        .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+        .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+        .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+        .replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>')
+        .replace(/\*(.*)\*/gim, '<em>$1</em>')
+        .replace(/\n$/gim, '<br />');
+      return `<!DOCTYPE html><html><head><style>body { font-family: sans-serif; padding: 20px; color: #fff; background-color: #1e1e1e; min-height: 100vh; }</style></head><body>${htmlContent}</body></html>`;
+    }
+    return `<!DOCTYPE html><html><head><style>body { font-family: sans-serif; padding: 20px; color: #fff; background-color: #1e1e1e; }</style></head><body><h3>${language} — no live preview</h3><pre>${code}</pre></body></html>`;
+  };
 
   const getEntryClass = (type: ConsoleEntry['type']) => {
     if (type === 'error') return 'console-line error';
@@ -281,7 +273,7 @@ export const ExecutionPanel: React.FC<ExecutionPanelProps> = ({ code, language }
         ) : (
           <div className="preview-display">
             <iframe
-              ref={iframeRef}
+              srcDoc={getPreviewHtml()}
               title="Execution Preview"
               sandbox="allow-scripts"
               className="preview-iframe"
