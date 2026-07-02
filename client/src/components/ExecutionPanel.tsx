@@ -112,13 +112,13 @@ export const ExecutionPanel: React.FC<ExecutionPanelProps> = ({ code, language }
         }
       };
 
-      // Reference customConsole to prevent TS unused warning (since it is only read in eval)
-      void customConsole;
+      // Attach to window temporarily to bypass minification renaming in production builds
+      (window as any).__collabexConsole = customConsole;
 
       try {
         // shadow the global console object using parameter shadowing in async IIFE
         // wrapped with newlines to ensure single-line comments don't comment out the closing brace
-        const wrappedCode = `(async (console) => {\n${code}\n})(customConsole)`;
+        const wrappedCode = `(async (console) => {\n${code}\n})(window.__collabexConsole)`;
         const result = await eval(wrappedCode); // eslint-disable-line no-eval
 
         if (captured.length === 0) {
@@ -133,6 +133,8 @@ export const ExecutionPanel: React.FC<ExecutionPanelProps> = ({ code, language }
       } catch (err: any) {
         const errMsg = err instanceof Error ? err.message : String(err);
         setEntries([...captured, { text: `Runtime Error: ${errMsg}`, type: 'error' }]);
+      } finally {
+        delete (window as any).__collabexConsole;
       }
     } else if (language === 'python') {
       try {
