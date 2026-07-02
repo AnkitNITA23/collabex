@@ -77,6 +77,10 @@ export const useCollab = (
       newSocket.emit('join-room', { roomId, username, color, avatar });
     });
 
+    newSocket.on('connect_error', (err) => {
+      console.error('[Collab] Socket connection error:', err);
+    });
+
     newSocket.on('disconnect', () => {
       setConnected(false);
     });
