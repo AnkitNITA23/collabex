@@ -1,0 +1,18 @@
+# Environment files (contains credentials)
+.env
+.env.local
+.env.*.local
+*.env
+
+# Dependency directory
+node_modules/
+
+# Compiled output
+dist/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
