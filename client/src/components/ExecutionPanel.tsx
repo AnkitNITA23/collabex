@@ -168,8 +168,7 @@ export const ExecutionPanel: React.FC<ExecutionPanelProps> = ({ code, language }
         setEntries((prev) => [...prev, { text: `Python Error: ${err.message}`, type: 'error' }]);
       }
     } else {
-      setEntries([{ text: `Preview mode active. Switch to the "Live Preview" tab.`, type: 'system' }]);
-      setActiveTab('preview');
+      setEntries([{ text: `${language.toUpperCase()} files cannot be executed. Click the "Live Preview" tab to preview your page.`, type: 'system' }]);
     }
 
     setIsRunning(false);
