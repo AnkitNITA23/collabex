@@ -12,8 +12,20 @@ import { persistRoom, loadPersistedRoom, connectMongo } from './persist';
 
 const app = express();
 
-// Restrict CORS to the CLIENT_ORIGIN env var in production, allow all in dev
-const allowedOrigin = process.env.CLIENT_ORIGIN || '*';
+// Restrict CORS to the CLIENT_ORIGIN env var in production, allow all in dev.
+// Strips trailing slashes to avoid mismatched origins in browser requests.
+const parseAllowedOrigin = (): string | string[] => {
+  const originEnv = process.env.CLIENT_ORIGIN;
+  if (!originEnv) return '*';
+  
+  const origins = originEnv.split(',')
+    .map(o => o.trim().replace(/\/$/, ''))
+    .filter(Boolean);
+    
+  return origins.length === 1 ? origins[0] : (origins.length > 0 ? origins : '*');
+};
+
+const allowedOrigin = parseAllowedOrigin();
 app.use(cors({ origin: allowedOrigin }));
 
 // Health check endpoint
