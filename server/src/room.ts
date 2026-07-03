@@ -18,6 +18,15 @@ export class RoomState {
   files: Map<string, DocumentState>; // fileId -> DocumentState
   fileTree: Map<string, FileNode>; // fileId -> FileNode
   collaborators: Map<string, CollaboratorState>; // socketId -> collaborator state
+  changesLog: {
+    userId: string;
+    username: string;
+    color: string;
+    fileName: string;
+    timestamp: number;
+    changeType: string;
+    description: string;
+  }[] = [];
 
   constructor(roomId: string, skipDefault = false) {
     this.roomId = roomId;
@@ -148,5 +157,49 @@ export class RoomState {
       }
     }
     return list;
+  }
+
+  addChangeLog(
+    userId: string,
+    username: string,
+    color: string,
+    changeType: 'edit' | 'create' | 'delete' | 'rename',
+    fileName: string,
+    description: string
+  ) {
+    const timestamp = Date.now();
+    
+    // Group consecutive edits within 15 seconds by the same user on the same file
+    if (changeType === 'edit' && this.changesLog.length > 0) {
+      const last = this.changesLog[this.changesLog.length - 1];
+      if (
+        last.changeType === 'edit' &&
+        last.userId === userId &&
+        last.fileName === fileName &&
+        (timestamp - last.timestamp) < 15000
+      ) {
+        last.timestamp = timestamp;
+        last.description = description;
+        return last;
+      }
+    }
+
+    const entry = {
+      userId,
+      username,
+      color,
+      fileName,
+      timestamp,
+      changeType,
+      description
+    };
+    
+    this.changesLog.push(entry);
+
+    if (this.changesLog.length > 100) {
+      this.changesLog.shift();
+    }
+
+    return entry;
   }
 }

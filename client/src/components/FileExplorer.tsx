@@ -64,6 +64,14 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
     }
   };
 
+  const sortNodes = (nodes: FileNode[]) => {
+    return [...nodes].sort((a, b) => {
+      if (a.isFolder && !b.isFolder) return -1;
+      if (!a.isFolder && b.isFolder) return 1;
+      return a.name.localeCompare(b.name);
+    });
+  };
+
   const renderNode = (node: FileNode, depth = 0) => {
     const isExpanded = expandedFolders[node.id];
     const isActive = activeFileId === node.id;
@@ -73,7 +81,6 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
       <div key={node.id} style={{ display: 'flex', flexDirection: 'column' }}>
         <div
           className={`file-node-item ${isActive ? 'active' : ''}`}
-          style={{ paddingLeft: `${depth * 14 + 10}px` }}
           onClick={() => {
             if (node.isFolder) {
               toggleFolder(node.id);
@@ -93,7 +100,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
                 </span>
               </>
             ) : (
-              <span className="file-icon">
+              <span className="file-icon" style={{ marginLeft: '18px' }}>
                 <FileCode size={16} />
               </span>
             )}
@@ -154,41 +161,37 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
           )}
         </div>
 
-        {/* Input box for creating new file/folder under this node */}
-        {newItemType && newItemParentId === node.id && (
-          <div
-            className="file-node-item new-item-input-container"
-            style={{ paddingLeft: `${(depth + 1) * 14 + 10}px` }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {newItemType === 'folder' ? <Folder size={16} /> : <File size={16} />}
-            <input
-              type="text"
-              value={newItemName}
-              onChange={(e) => setNewItemName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSaveCreate()}
-              placeholder={newItemType === 'folder' ? 'Folder name...' : 'File name...'}
-              autoFocus
-              className="file-node-input"
-            />
-            <button type="button" className="rename-save-btn" onClick={handleSaveCreate}>✓</button>
-            <button type="button" className="rename-cancel-btn" onClick={() => { setNewItemType(null); setNewItemParentId(null); }}>✗</button>
-          </div>
-        )}
-
         {/* Render Children */}
         {node.isFolder && isExpanded && (
           <div className="folder-children">
-            {fileTree
-              .filter((n) => n.parentId === node.id)
-              .map((n) => renderNode(n, depth + 1))}
+            {/* Input box for creating new file/folder under this node */}
+            {newItemType && newItemParentId === node.id && (
+              <div className="file-node-item new-item-input-container" onClick={(e) => e.stopPropagation()}>
+                <span className={newItemType === 'folder' ? 'folder-icon' : 'file-icon'} style={{ marginLeft: newItemType === 'folder' ? '0px' : '18px' }}>
+                  {newItemType === 'folder' ? <Folder size={16} /> : <FileCode size={16} />}
+                </span>
+                <input
+                  type="text"
+                  value={newItemName}
+                  onChange={(e) => setNewItemName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSaveCreate()}
+                  placeholder={newItemType === 'folder' ? 'Folder name...' : 'File name...'}
+                  autoFocus
+                  className="file-node-input"
+                />
+                <button type="button" className="rename-save-btn" onClick={handleSaveCreate}>✓</button>
+                <button type="button" className="rename-cancel-btn" onClick={() => { setNewItemType(null); setNewItemParentId(null); }}>✗</button>
+              </div>
+            )}
+
+            {sortNodes(fileTree.filter((n) => n.parentId === node.id)).map((n) => renderNode(n, depth + 1))}
           </div>
         )}
       </div>
     );
   };
 
-  const rootNodes = fileTree.filter((node) => node.parentId === null);
+  const rootNodes = sortNodes(fileTree.filter((node) => node.parentId === null));
 
   return (
     <div className="file-explorer glassmorphism">
@@ -201,7 +204,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
             title="Create File at Root"
             className="explorer-add-btn"
           >
-            <Plus size={14} /> File
+            <Plus size={12} /> File
           </button>
           <button
             type="button"
@@ -209,7 +212,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
             title="Create Folder at Root"
             className="explorer-add-btn"
           >
-            <FolderPlus size={14} /> Folder
+            <FolderPlus size={12} /> Folder
           </button>
         </div>
       </div>
@@ -217,8 +220,10 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
       <div className="file-tree-container">
         {/* Input box for root creation */}
         {newItemType && newItemParentId === null && (
-          <div className="file-node-item new-item-input-container" style={{ paddingLeft: '10px' }} onClick={(e) => e.stopPropagation()}>
-            {newItemType === 'folder' ? <Folder size={16} /> : <File size={16} />}
+          <div className="file-node-item new-item-input-container" onClick={(e) => e.stopPropagation()}>
+            <span className={newItemType === 'folder' ? 'folder-icon' : 'file-icon'} style={{ marginLeft: newItemType === 'folder' ? '0px' : '18px' }}>
+              {newItemType === 'folder' ? <Folder size={16} /> : <FileCode size={16} />}
+            </span>
             <input
               type="text"
               value={newItemName}

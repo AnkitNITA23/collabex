@@ -86,7 +86,13 @@ async function persistRoomMongo(room: RoomState): Promise<void> {
 
   await RoomModel.findOneAndUpdate(
     { roomId: room.roomId },
-    { roomId: room.roomId, savedAt: new Date(), fileTree: fileTreeArr, files: filesArr },
+    {
+      roomId: room.roomId,
+      savedAt: new Date(),
+      fileTree: fileTreeArr,
+      files: filesArr,
+      changesLog: room.changesLog
+    },
     { upsert: true, new: true }
   );
 
@@ -98,6 +104,7 @@ async function loadRoomMongo(roomId: string): Promise<RoomState | null> {
   if (!doc) return null;
 
   const room = new RoomState(roomId, true /* skipDefault */);
+  room.changesLog = doc.changesLog || [];
 
   for (const node of doc.fileTree) {
     room.fileTree.set(node.id, node);
@@ -123,6 +130,7 @@ interface JsonRoom {
   savedAt:  number;
   fileTree: { id: string; name: string; isFolder: boolean; parentId: string | null }[];
   files:    { id: string; name: string; language: string; text: string; version: number }[];
+  changesLog: any[];
 }
 
 function readJsonData(): { rooms: JsonRoom[] } {
@@ -158,7 +166,13 @@ function persistRoomJson(room: RoomState): void {
     }
   }
 
-  const payload: JsonRoom = { roomId: room.roomId, savedAt: Date.now(), fileTree: fileTreeArr, files: filesArr };
+  const payload: JsonRoom = {
+    roomId: room.roomId,
+    savedAt: Date.now(),
+    fileTree: fileTreeArr,
+    files: filesArr,
+    changesLog: room.changesLog
+  };
   const idx = data.rooms.findIndex((r) => r.roomId === room.roomId);
   if (idx >= 0) data.rooms[idx] = payload; else data.rooms.push(payload);
   writeJsonData(data);
@@ -171,6 +185,7 @@ function loadRoomJson(roomId: string): RoomState | null {
   if (!saved) return null;
 
   const room = new RoomState(roomId, true /* skipDefault */);
+  room.changesLog = saved.changesLog || [];
   for (const node of saved.fileTree) room.fileTree.set(node.id, node);
   for (const f of saved.files) {
     const doc = new DocumentState(f.text, f.language);

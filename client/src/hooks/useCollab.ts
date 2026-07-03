@@ -27,6 +27,16 @@ export interface ProjectFile {
   version: number;
 }
 
+export interface ChangeLogEntry {
+  userId: string;
+  username: string;
+  color: string;
+  fileName: string;
+  timestamp: number;
+  changeType: 'edit' | 'create' | 'delete' | 'rename';
+  description: string;
+}
+
 export const useCollab = (
   roomId: string | null,
   username: string | null,
@@ -40,6 +50,7 @@ export const useCollab = (
   const [language, setLanguage] = useState('javascript');
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [initialText, setInitialText] = useState('');
+  const [changesLog, setChangesLog] = useState<ChangeLogEntry[]>([]);
 
   // Multi-file States
   const [files, setFiles] = useState<ProjectFile[]>([]);
@@ -86,7 +97,7 @@ export const useCollab = (
     });
 
     // 1. Initial State from Server
-    newSocket.on('init-room', ({ files: initialFiles, fileTree: initialTree, activeFileId: serverActiveFileId, collaborators: list }) => {
+    newSocket.on('init-room', ({ files: initialFiles, fileTree: initialTree, activeFileId: serverActiveFileId, collaborators: list, changesLog: serverChangesLog }) => {
       versionsRef.current.clear();
       outstandingOpsRef.current.clear();
       bufferOpsRef.current.clear();
@@ -126,6 +137,7 @@ export const useCollab = (
       }
 
       setCollaborators(list.filter((c: any) => c.id !== newSocket.id));
+      setChangesLog(serverChangesLog || []);
     });
 
     // 2. A remote operation was applied
@@ -312,6 +324,25 @@ export const useCollab = (
       setCollaborators((prev) =>
         prev.map((c) => (c.id === clientID ? { ...c, status } : c))
       );
+    });
+
+    // 11. Change Log updates
+    newSocket.on('new-changelog-entry', (entry: ChangeLogEntry) => {
+      setChangesLog((prev) => {
+        // Group consecutive edits within 15 seconds by same user on same file
+        if (entry.changeType === 'edit' && prev.length > 0) {
+          const last = prev[prev.length - 1];
+          if (
+            last.changeType === 'edit' &&
+            last.userId === entry.userId &&
+            last.fileName === entry.fileName &&
+            Math.abs(entry.timestamp - last.timestamp) < 15000
+          ) {
+            return [...prev.slice(0, -1), entry];
+          }
+        }
+        return [...prev, entry];
+      });
     });
 
     // 11. Collaborator Joined/Left
@@ -502,5 +533,6 @@ export const useCollab = (
     changePresenceStatus,
     activeFileContent: getActiveFileContent(),
     activeFileLanguage: getActiveFileLanguage(),
+    changesLog,
   };
 };

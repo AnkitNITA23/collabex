@@ -105,7 +105,8 @@ io.on('connection', (socket) => {
       activeFileId: defaultActiveFileId,
       text: defaultActiveFile?.text || '',
       version: defaultActiveFile?.version || 0,
-      collaborators: room.getCollaboratorsList()
+      collaborators: room.getCollaboratorsList(),
+      changesLog: room.changesLog
     });
 
     // Notify other users in the room
@@ -146,6 +147,19 @@ io.on('connection', (socket) => {
       // Apply the operation using server-side OT
       const transformedOp = doc.applyOperation(operation, version);
       console.log('[Server] Resulting document text:', JSON.stringify(doc.text));
+
+      // Add to change log
+      const fileNode = room.fileTree.get(fileId);
+      const fileName = fileNode ? fileNode.name : 'Unknown File';
+      const logEntry = room.addChangeLog(
+        socket.id,
+        conn.username,
+        conn.color,
+        'edit',
+        fileName,
+        `Edited ${fileName}`
+      );
+      io.in(roomId).emit('new-changelog-entry', logEntry);
 
       // Adjust existing cursors of other collaborators in this room who are editing this file
       for (const collab of room.collaborators.values()) {
@@ -217,6 +231,17 @@ io.on('connection', (socket) => {
 
     const node = room.createFile(id, name, isFolder, parentId);
 
+    // Add to change log
+    const logEntry = room.addChangeLog(
+      socket.id,
+      conn.username,
+      conn.color,
+      'create',
+      name,
+      `Created ${isFolder ? 'folder' : 'file'} "${name}"`
+    );
+    io.in(roomId).emit('new-changelog-entry', logEntry);
+
     // Broadcast to everyone in the room
     io.in(roomId).emit('file-created', {
       node,
@@ -235,7 +260,22 @@ io.on('connection', (socket) => {
     const room = rooms.get(roomId);
     if (!room) return;
 
+    const node = room.fileTree.get(fileId);
+    const fileName = node ? node.name : 'Unknown File';
+    const isFolder = node ? node.isFolder : false;
+
     room.deleteFile(fileId);
+
+    // Add to change log
+    const logEntry = room.addChangeLog(
+      socket.id,
+      conn.username,
+      conn.color,
+      'delete',
+      fileName,
+      `Deleted ${isFolder ? 'folder' : 'file'} "${fileName}"`
+    );
+    io.in(roomId).emit('new-changelog-entry', logEntry);
 
     // Broadcast delete event
     io.in(roomId).emit('file-deleted', { fileId });
@@ -248,7 +288,21 @@ io.on('connection', (socket) => {
     const room = rooms.get(roomId);
     if (!room) return;
 
+    const node = room.fileTree.get(fileId);
+    const oldName = node ? node.name : 'Unknown File';
+
     room.renameFile(fileId, newName);
+
+    // Add to change log
+    const logEntry = room.addChangeLog(
+      socket.id,
+      conn.username,
+      conn.color,
+      'rename',
+      newName,
+      `Renamed "${oldName}" to "${newName}"`
+    );
+    io.in(roomId).emit('new-changelog-entry', logEntry);
 
     // Broadcast rename event
     io.in(roomId).emit('file-renamed', {

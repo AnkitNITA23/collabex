@@ -7,7 +7,7 @@ import { FileExplorer } from './components/FileExplorer';
 import { ExecutionPanel } from './components/ExecutionPanel';
 import { Editor } from './components/Editor';
 import { useCollab } from './hooks/useCollab';
-import { Copy, Check, MessageSquare, Send, LogOut, Code, Languages, Palette, Download } from 'lucide-react';
+import { Copy, Check, MessageSquare, Send, LogOut, Code, Languages, Palette, Download, History } from 'lucide-react';
 
 export default function App() {
   const [session, setSession] = useState<{ roomId: string; username: string; color: string; avatar: string } | null>(() => {
@@ -32,6 +32,8 @@ export default function App() {
   const [chatInput, setChatInput] = useState('');
   const [copied, setCopied] = useState(false);
   const [theme, setTheme] = useState('one-dark');
+  const [fontSize, setFontSize] = useState<number>(14);
+  const [sidebarTab, setSidebarTab] = useState<'chat' | 'history'>('chat');
 
   // Sync browser URL room query parameter with session state on mount/change
   useEffect(() => {
@@ -65,6 +67,7 @@ export default function App() {
     changePresenceStatus,
     activeFileContent,
     activeFileLanguage,
+    changesLog,
   } = useCollab(
     session?.roomId || null,
     session?.username || null,
@@ -155,7 +158,7 @@ export default function App() {
   ];
 
   return (
-    <div className="app-layout">
+    <div className="app-layout" style={{ '--workspace-font-size': `${fontSize}px` } as React.CSSProperties}>
       {/* Sidebar Panel */}
       <aside className="sidebar glassmorphism">
         <div className="sidebar-logo">
@@ -179,52 +182,108 @@ export default function App() {
           onRenameFile={renameFile}
         />
 
-        {/* Chat Section */}
-        <div className="chat-section">
-          <div className="chat-header">
-            <MessageSquare size={16} />
-            <h3>Room Chat</h3>
-          </div>
-
-          <div className="chat-messages">
-            {chatMessages.length === 0 ? (
-              <div className="chat-empty">
-                <p>No messages yet. Say hello to your collaborators!</p>
-              </div>
-            ) : (
-              chatMessages.map((msg, idx) => {
-                const isSelf = msg.clientID === socketId;
-                return (
-                  <div key={idx} className={`chat-bubble-container ${isSelf ? 'self' : ''}`}>
-                    <div className="chat-bubble-meta">
-                      <span className="chat-user" style={{ color: msg.color }}>{msg.username}</span>
-                      <span className="chat-time">
-                        {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
-                    <div className="chat-bubble" style={{ borderLeft: `3px solid ${msg.color}` }}>
-                      {msg.text}
-                    </div>
-                  </div>
-                );
-              })
-            )}
-            <div ref={chatBottomRef} />
-          </div>
-
-          <form onSubmit={handleSendChat} className="chat-input-form">
-            <input
-              type="text"
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              placeholder="Type a message..."
-              maxLength={150}
-            />
-            <button type="submit" disabled={!chatInput.trim()}>
-              <Send size={16} />
-            </button>
-          </form>
+        {/* Chat Section & Changes Log Selector */}
+        <div className="sidebar-tabs-container">
+          <button
+            type="button"
+            className={`sidebar-tab-btn ${sidebarTab === 'chat' ? 'active' : ''}`}
+            onClick={() => setSidebarTab('chat')}
+          >
+            <MessageSquare size={14} />
+            <span>Chat</span>
+          </button>
+          <button
+            type="button"
+            className={`sidebar-tab-btn ${sidebarTab === 'history' ? 'active' : ''}`}
+            onClick={() => setSidebarTab('history')}
+          >
+            <History size={14} />
+            <span>History</span>
+          </button>
         </div>
+
+        {sidebarTab === 'chat' ? (
+          <div className="chat-section">
+            <div className="chat-header">
+              <MessageSquare size={16} />
+              <h3>Room Chat</h3>
+            </div>
+
+            <div className="chat-messages">
+              {chatMessages.length === 0 ? (
+                <div className="chat-empty">
+                  <p>No messages yet. Say hello to your collaborators!</p>
+                </div>
+              ) : (
+                chatMessages.map((msg, idx) => {
+                  const isSelf = msg.clientID === socketId;
+                  return (
+                    <div key={idx} className={`chat-bubble-container ${isSelf ? 'self' : ''}`}>
+                      <div className="chat-bubble-meta">
+                        <span className="chat-user" style={{ color: msg.color }}>{msg.username}</span>
+                        <span className="chat-time">
+                          {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      <div className="chat-bubble" style={{ borderLeft: `3px solid ${msg.color}` }}>
+                        {msg.text}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+              <div ref={chatBottomRef} />
+            </div>
+
+            <form onSubmit={handleSendChat} className="chat-input-form">
+              <input
+                type="text"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                placeholder="Type a message..."
+                maxLength={150}
+              />
+              <button type="submit" disabled={!chatInput.trim()}>
+                <Send size={16} />
+              </button>
+            </form>
+          </div>
+        ) : (
+          <div className="changes-history-section">
+            <div className="chat-header">
+              <History size={16} />
+              <h3>Changes Log</h3>
+            </div>
+
+            <div className="changes-history-list">
+              {changesLog.length === 0 ? (
+                <div className="history-empty">
+                  <p>No changes logged yet.</p>
+                </div>
+              ) : (
+                changesLog.slice().reverse().map((entry, idx) => {
+                  const date = new Date(entry.timestamp);
+                  const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                  return (
+                    <div key={idx} className="history-log-item">
+                      <div className="history-item-marker">
+                        <div className="history-item-dot" style={{ backgroundColor: entry.color }} />
+                        {idx !== changesLog.length - 1 && <div className="history-item-line" />}
+                      </div>
+                      <div className="history-item-details">
+                        <div className="history-item-header">
+                          <span className="history-item-user" style={{ color: entry.color }}>{entry.username}</span>
+                          <span className="history-item-time">{timeStr}</span>
+                        </div>
+                        <p className="history-item-desc">{entry.description}</p>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
       </aside>
 
       {/* Main Workspace */}
@@ -278,6 +337,19 @@ export default function App() {
                 <option value="css">CSS</option>
                 <option value="markdown">Markdown</option>
               </select>
+            </div>
+
+            {/* Font Sizing Slider */}
+            <div className="font-size-slider-container">
+              <span className="slider-label">Font: {fontSize}px</span>
+              <input
+                type="range"
+                min="12"
+                max="24"
+                value={fontSize}
+                onChange={(e) => setFontSize(Number(e.target.value))}
+                className="font-size-range-slider"
+              />
             </div>
 
             <button className="download-btn" onClick={handleDownload} title="Download all files as ZIP">
