@@ -140,6 +140,7 @@ export const useCollab = (
       setChangesLog(serverChangesLog || []);
     });
 
+    // 2. A remote operation was applied
     newSocket.on('operation', ({ fileId, op: opJson, clientID, version: serverVersion }) => {
       console.log('[Collab] Received operation event from server:', { fileId, clientID, serverVersion });
       if (clientID === newSocket.id) return;
@@ -211,9 +212,6 @@ export const useCollab = (
           return c;
         })
       );
-
-      // Update local version for this file
-      versionsRef.current.set(fileId, serverVersion);
     });
 
     // 3. Outstanding operation was acknowledged by the server
