@@ -140,10 +140,15 @@ export const useCollab = (
       setChangesLog(serverChangesLog || []);
     });
 
-    // 2. A remote operation was applied
     newSocket.on('operation', ({ fileId, op: opJson, clientID, version: serverVersion }) => {
       console.log('[Collab] Received operation event from server:', { fileId, clientID, serverVersion });
       if (clientID === newSocket.id) return;
+
+      const currentVer = versionsRef.current.get(fileId) || 0;
+      if (serverVersion <= currentVer) {
+        console.log('[Collab] Ignored duplicate or stale operation:', { fileId, serverVersion, currentVer });
+        return;
+      }
 
       const remoteOp = TextOperation.fromJSON(opJson);
 
@@ -163,6 +168,9 @@ export const useCollab = (
         transformedRemoteOp = remotePrime;
         bufferOpsRef.current.set(fileId, bufferPrime);
       }
+
+      // Update local version reference for this file to prevent version drift
+      versionsRef.current.set(fileId, serverVersion);
 
       // If active file, apply to view, otherwise update cached contents
       if (fileId === activeFileIdRef.current) {
