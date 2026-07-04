@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Folder, FolderOpen, File, FileCode, Plus, FolderPlus, Trash2, Edit3, ChevronDown, ChevronRight } from 'lucide-react';
+import { Folder, FolderOpen, FileCode, Plus, FolderPlus, Trash2, Edit3, ChevronDown, ChevronRight } from 'lucide-react';
 
 export interface FileNode {
   id: string;
