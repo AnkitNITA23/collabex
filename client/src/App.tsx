@@ -11,7 +11,7 @@ import { Copy, Check, MessageSquare, Send, LogOut, Code, Languages, Palette, Dow
 
 export default function App() {
   const [session, setSession] = useState<{ roomId: string; username: string; color: string; avatar: string } | null>(() => {
-    const saved = localStorage.getItem('collabex_session');
+    const saved = sessionStorage.getItem('collabex_session');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -21,7 +21,7 @@ export default function App() {
           return parsed;
         }
       } catch (e) {
-        console.error('Failed to restore session from localStorage:', e);
+        console.error('Failed to restore session from sessionStorage:', e);
       }
     }
     return null;
@@ -78,14 +78,14 @@ export default function App() {
 
   const handleJoin = (roomId: string, username: string, color: string, avatar: string) => {
     const newSession = { roomId, username, color, avatar };
-    localStorage.setItem('collabex_session', JSON.stringify(newSession));
+    sessionStorage.setItem('collabex_session', JSON.stringify(newSession));
     const newUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?room=${roomId}`;
     window.history.pushState({ path: newUrl }, '', newUrl);
     setSession(newSession);
   };
 
   const handleLeave = () => {
-    localStorage.removeItem('collabex_session');
+    sessionStorage.removeItem('collabex_session');
     const cleanUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}`;
     window.history.pushState({ path: cleanUrl }, '', cleanUrl);
     setSession(null);

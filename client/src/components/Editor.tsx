@@ -72,20 +72,23 @@ const remoteCursorsField = StateField.define<DecorationSet>({
         const collaborators = effect.value;
         const ranges: Range<Decoration>[] = [];
 
+        const docLength = tr.state.doc.length;
         for (const user of collaborators) {
-          if (user.cursor === null) continue;
+          if (user.cursor === null || user.cursor > docLength) continue;
 
           if (user.selectionEnd !== null && user.cursor !== user.selectionEnd) {
             const start = Math.min(user.cursor, user.selectionEnd);
             const end = Math.max(user.cursor, user.selectionEnd);
-            ranges.push(
-              Decoration.mark({
-                attributes: {
-                  style: `background-color: ${user.color}25; border-bottom: 2px solid ${user.color}40`,
-                  class: 'cm-remote-selection'
-                }
-              }).range(start, end)
-            );
+            if (start <= docLength && end <= docLength) {
+              ranges.push(
+                Decoration.mark({
+                  attributes: {
+                    style: `background-color: ${user.color}25; border-bottom: 2px solid ${user.color}40`,
+                    class: 'cm-remote-selection'
+                  }
+                }).range(start, end)
+              );
+            }
           }
 
           const cursorWidget = Decoration.widget({

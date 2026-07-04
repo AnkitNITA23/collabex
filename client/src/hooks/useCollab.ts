@@ -77,9 +77,23 @@ export const useCollab = (
 
   // Connect to Socket.io server
   useEffect(() => {
-    if (!roomId || !username || !color) return;
+    if (!roomId || !username || !color) {
+      setConnected(false);
+      setCollaborators([]);
+      setChatMessages([]);
+      setInitialText('');
+      setChangesLog([]);
+      setFiles([]);
+      setFileTree([]);
+      setActiveFileId(null);
+      return;
+    }
 
-    const socketUrl = import.meta.env.VITE_BACKEND_URL || (window.location.hostname === 'localhost' ? 'http://localhost:3001' : '/');
+    const socketUrl =
+      import.meta.env.VITE_BACKEND_URL ||
+      (window.location.port === '3000'
+        ? `${window.location.protocol}//${window.location.hostname}:3001`
+        : '/');
     const newSocket = io(socketUrl);
     setSocket(newSocket);
 
@@ -173,18 +187,16 @@ export const useCollab = (
       // Update local version reference for this file to prevent version drift
       versionsRef.current.set(fileId, serverVersion);
 
-      // If active file, apply to view, otherwise update cached contents
-      if (fileId === activeFileIdRef.current) {
-        const view = editorRef.current;
+      // If active file and view is mounted, apply to view directly. Otherwise update cached contents.
+      const view = editorRef.current;
+      if (fileId === activeFileIdRef.current && view) {
         console.log('[Collab] Applying remote operation to active view for file:', fileId);
-        if (view) {
-          applyRemoteOperation(view, transformedRemoteOp);
-          const newContent = view.state.doc.toString();
-          fileContentsRef.current.set(fileId, newContent);
-          setFiles((prev) =>
-            prev.map((f) => (f.id === fileId ? { ...f, text: newContent } : f))
-          );
-        }
+        applyRemoteOperation(view, transformedRemoteOp);
+        const newContent = view.state.doc.toString();
+        fileContentsRef.current.set(fileId, newContent);
+        setFiles((prev) =>
+          prev.map((f) => (f.id === fileId ? { ...f, text: newContent } : f))
+        );
       } else {
         const currentContent = fileContentsRef.current.get(fileId) || '';
         console.log('[Collab] Applying remote operation to cached file:', fileId);
@@ -194,6 +206,9 @@ export const useCollab = (
           setFiles((prev) =>
             prev.map((f) => (f.id === fileId ? { ...f, text: newContent } : f))
           );
+          if (fileId === activeFileIdRef.current) {
+            setInitialText(newContent);
+          }
         } catch (err) {
           console.error(`Error applying remote op to cached content:`, err);
         }
